@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "SARA — Personal AI Assistant",
+  "version": "0.2.0",
+  "description": "Adaptive Personalized Recommendation Engine companion. Observes recommendation-relevant browsing signals and delivers personalized, cross-site recommendations.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "sidePanel",
+    "identity"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/index.ts"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "index.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "oauth2": {
+    "client_id": "__GOOGLE_OAUTH_CLIENT_ID__",
+    "scopes": ["openid", "email", "profile"]
+  }
+}

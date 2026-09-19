@@ -1,0 +1,31 @@
+# Dependency caches and node_modules
+node_modules/
+.npm/
+*.log
+
+# Build & compilation outputs
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Environment variables & secrets (NEVER commit secrets!)
+.env
+.env.*
+!.env.example
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Temporary & agent files
+scratch/
+tmp/
+.gemini/
+.antigravity/
+
