@@ -28,6 +28,15 @@ eventsRouter.post('/ingest', authenticateRequest, async (req: AuthenticatedReque
     const adapter = adapterRegistry.getAdapter(url);
     const signal = adapter.extract(url, pageMeta || { title });
 
+    console.log('[Backend /events/ingest] Processing signal:', {
+      userId,
+      url,
+      adapter: adapter.name,
+      extractedTitle: signal?.title,
+      eventType: signal?.eventType,
+      keywords: signal?.keywords
+    });
+
     if (!signal) {
       res.status(200).json({ success: true, message: 'No signal extracted' });
       return;

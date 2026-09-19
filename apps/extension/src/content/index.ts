@@ -38,8 +38,28 @@ function getMetaTag(name: string): string | undefined {
   return el ? el.getAttribute('content') || undefined : undefined;
 }
 
+function extractYouTubeTitle(): string {
+  const watchTitleEl = document.querySelector(
+    'h1.ytd-watch-metadata, #title h1, ytd-video-primary-info-renderer h1, h1.title.ytd-video-primary-info-renderer'
+  );
+  if (watchTitleEl && watchTitleEl.textContent?.trim()) {
+    return watchTitleEl.textContent.trim();
+  }
+  const ogTitle = getMetaTag('og:title');
+  if (ogTitle && ogTitle !== 'YouTube') {
+    return ogTitle;
+  }
+  const docTitle = document.title.replace(/ - YouTube$/, '').trim();
+  if (docTitle && docTitle !== 'YouTube' && docTitle !== '') {
+    return docTitle;
+  }
+  return 'YouTube Video';
+}
+
 function extractYouTubeChannelName(): string | undefined {
-  const channelEl = document.querySelector('#channel-name a, ytd-channel-name a, #owner #text a');
+  const channelEl = document.querySelector(
+    '#channel-name a, ytd-channel-name a, #owner #text a, ytd-video-owner-renderer #channel-name a, #upload-info #channel-name a'
+  );
   return channelEl ? channelEl.textContent?.trim() : undefined;
 }
 
@@ -59,11 +79,14 @@ function extractShoppingMetadata(): { price?: string; brand?: string; category?:
  * Sends normalized behavior payload to extension background service worker.
  */
 function sendBehaviorSignal(eventType?: EventType, extraMeta: Record<string, unknown> = {}) {
-  const title = document.title;
   const url = window.location.href;
+  const isYouTubeWatch = url.includes('youtube.com/watch');
+  const title = isYouTubeWatch ? extractYouTubeTitle() : (document.title || 'Web Page');
   const searchQuery = getSearchQueryFromDOM();
   const shoppingMeta = extractShoppingMetadata();
-  const channelName = extractYouTubeChannelName();
+  const channelName = isYouTubeWatch ? extractYouTubeChannelName() : undefined;
+
+  console.log('[SARA YouTube] Sending behavior signal:', { eventType: eventType || 'PAGE_VIEW', title, url });
 
   const pageMeta: Record<string, unknown> = {
     title,
@@ -95,6 +118,40 @@ function captureCurrentPageSignal() {
   sendBehaviorSignal();
 }
 
+// SPA Navigation Observer for YouTube
+let lastObservedUrl = window.location.href;
+
+function resetPageContext() {
+  activeDwellMs = 0;
+  lastDwellCheck = Date.now();
+  hasSentDwellSignal = false;
+  sentScrollMilestones.clear();
+  maxScrollDepthPercent = 0;
+}
+
+function onPageOrUrlChange(reason: string) {
+  const newUrl = window.location.href;
+  if (newUrl !== lastObservedUrl || reason === 'yt-navigate-finish') {
+    console.log(`[SARA YouTube] Page navigation detected (${reason}):`, newUrl);
+    lastObservedUrl = newUrl;
+    resetPageContext();
+
+    // Give DOM time to update video title and elements
+    setTimeout(() => {
+      captureCurrentPageSignal();
+      attachMediaListeners();
+    }, 1000);
+  }
+}
+
+window.addEventListener('yt-navigate-finish', () => onPageOrUrlChange('yt-navigate-finish'));
+window.addEventListener('popstate', () => onPageOrUrlChange('popstate'));
+setInterval(() => {
+  if (window.location.href !== lastObservedUrl) {
+    onPageOrUrlChange('url-poll');
+  }
+}, 1500);
+
 // 2. Dwell Time tracking
 document.addEventListener('visibilitychange', () => {
   const now = Date.now();
@@ -109,7 +166,7 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-// Periodic dwell check (after 15s of active dwell)
+// Periodic dwell check (after 10s of active dwell)
 setInterval(() => {
   if (isPageVisible) {
     const now = Date.now();
@@ -117,7 +174,7 @@ setInterval(() => {
     lastDwellCheck = now;
   }
 
-  if (activeDwellMs >= 15000 && !hasSentDwellSignal) {
+  if (activeDwellMs >= 10000 && !hasSentDwellSignal) {
     hasSentDwellSignal = true;
     sendBehaviorSignal(EventType.DWELL_TIME, { durationMs: activeDwellMs });
   }
@@ -155,10 +212,12 @@ function attachMediaListeners() {
     video.dataset.saraTracked = 'true';
 
     video.addEventListener('play', () => {
+      console.log('[SARA YouTube] Video playback started:', window.location.href);
       sendBehaviorSignal(EventType.MEDIA_PLAY);
     });
 
     video.addEventListener('ended', () => {
+      console.log('[SARA YouTube] Video playback ended:', window.location.href);
       sendBehaviorSignal(EventType.MEDIA_COMPLETE, { durationMs: Math.round(video.duration * 1000) });
     });
   });
