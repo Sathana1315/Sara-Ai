@@ -20,7 +20,7 @@ feedbackRouter.post('/', authenticateRequest, async (req: AuthenticatedRequest |
       return;
     }
 
-    const dbClient = supabaseAdmin || supabase;
+    const dbClient = authReq.userSupabase || supabaseAdmin || supabase;
 
     // 1. Store feedback entry
     const { data: insertedFeedback, error: feedbackError } = await dbClient

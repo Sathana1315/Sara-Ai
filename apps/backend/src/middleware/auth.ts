@@ -20,6 +20,8 @@ export interface AuthenticatedRequest extends Request {
   saraUserId: string;
   /** Raw Bearer token for forwarding to Supabase client operations */
   accessToken: string;
+  /** Per-request Supabase client carrying the user JWT for RLS compliance */
+  userSupabase: any;
 }
 
 /**
@@ -69,23 +71,16 @@ export async function authenticateRequest(
     }
 
     // Resolve the SARA application user id from auth.users id
-    // Use service role client to bypass RLS for this internal lookup
-    const adminUrl = supabaseUrl;
-    const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabasePublishableKey;
-    const adminClient = createClient(adminUrl, adminKey, {
-      auth: { autoRefreshToken: false, persistSession: false }
-    });
-
-    const { data: saraProfile, error: profileError } = await adminClient
+    // Use userSupabase client carrying the verified JWT so RLS permits lookup and insertion
+    const { data: saraProfile, error: profileError } = await userSupabase
       .from('users')
       .select('id')
       .eq('auth_user_id', user.id)
       .single();
 
     if (profileError || !saraProfile) {
-      // Profile not yet provisioned (trigger may not have fired)
-      // Attempt to create it now
-      const { data: newProfile, error: insertError } = await adminClient
+      // Profile not yet provisioned — attempt to create it now with userSupabase
+      const { data: newProfile, error: insertError } = await userSupabase
         .from('users')
         .insert({
           auth_user_id: user.id,
@@ -97,8 +92,8 @@ export async function authenticateRequest(
         .single();
 
       if (insertError || !newProfile) {
-        console.error('Failed to provision SARA profile:', insertError?.message);
-        res.status(500).json({ error: 'Failed to provision user profile.' });
+        console.error('Failed to provision SARA profile:', insertError?.message, insertError, profileError);
+        res.status(500).json({ error: 'Failed to provision user profile.', details: insertError?.message || profileError?.message });
         return;
       }
 
@@ -109,6 +104,7 @@ export async function authenticateRequest(
 
     (req as AuthenticatedRequest).authUserId = user.id;
     (req as AuthenticatedRequest).accessToken = token;
+    (req as AuthenticatedRequest).userSupabase = userSupabase;
 
     next();
   } catch (err: any) {

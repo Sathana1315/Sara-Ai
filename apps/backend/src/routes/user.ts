@@ -14,7 +14,7 @@ userRouter.get('/profile', authenticateRequest, async (req: AuthenticatedRequest
   try {
     const authReq = req as AuthenticatedRequest;
     const userId = authReq.saraUserId;
-    const dbClient = supabaseAdmin || supabase;
+    const dbClient = authReq.userSupabase || supabaseAdmin || supabase;
 
     // 1. Fetch SARA profile
     const { data: profile } = await dbClient
@@ -63,7 +63,7 @@ userRouter.get('/profile', authenticateRequest, async (req: AuthenticatedRequest
       totalRecommendationsGenerated: recCount || 0,
       totalFeedbackGiven: feedbackCount || 0,
       interestsLearnedCount: interests ? interests.length : 0,
-      interests: (interests || []).map((row) => ({
+      interests: (interests || []).map((row: any) => ({
         topic: row.topic,
         category: row.category,
         weight: row.weight,
@@ -87,7 +87,7 @@ userRouter.get('/history', authenticateRequest, async (req: AuthenticatedRequest
   try {
     const authReq = req as AuthenticatedRequest;
     const userId = authReq.saraUserId;
-    const dbClient = supabaseAdmin || supabase;
+    const dbClient = authReq.userSupabase || supabaseAdmin || supabase;
 
     const { data: history } = await dbClient
       .from('learning_history')
@@ -114,7 +114,7 @@ userRouter.get('/behavior', authenticateRequest, async (req: AuthenticatedReques
   try {
     const authReq = req as AuthenticatedRequest;
     const userId = authReq.saraUserId;
-    const dbClient = supabaseAdmin || supabase;
+    const dbClient = authReq.userSupabase || supabaseAdmin || supabase;
 
     const { data: events } = await dbClient
       .from('behavior_events')

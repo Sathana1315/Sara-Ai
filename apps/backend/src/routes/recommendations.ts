@@ -20,7 +20,7 @@ recommendationsRouter.get('/', authenticateRequest, async (req: AuthenticatedReq
     const context = (req.query.context as 'current_site' | 'global_dashboard') || 'global_dashboard';
     const currentDomain = req.query.domain as string | undefined;
 
-    const dbClient = supabaseAdmin || supabase;
+    const dbClient = authReq.userSupabase || supabaseAdmin || supabase;
 
     // 1. Fetch user profile interests from Supabase
     const { data: interestsData } = await dbClient
@@ -61,7 +61,7 @@ recommendationsRouter.get('/', authenticateRequest, async (req: AuthenticatedReq
       .from('behavior_events')
       .select('url')
       .eq('user_id', userId);
-    const consumedUrls = new Set((consumedEvents || []).map((e: any) => e.url).filter(Boolean));
+    const consumedUrls = new Set<string>((consumedEvents || []).map((e: any) => e.url).filter(Boolean));
 
     // 3. Fetch candidate items from content_items table
     const { data: candidateData } = await supabase.from('content_items').select('*');

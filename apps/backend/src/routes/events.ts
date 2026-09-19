@@ -43,7 +43,7 @@ eventsRouter.post('/ingest', authenticateRequest, async (req: AuthenticatedReque
     }
 
     const behaviorEvent = adapter.normalize(signal, userId, sessionId || 'default_session', url);
-    const dbClient = supabaseAdmin || supabase;
+    const dbClient = authReq.userSupabase || supabaseAdmin || supabase;
 
     // 1. Maintain browsing session in public.sessions
     let dbSessionId: string | null = null;
